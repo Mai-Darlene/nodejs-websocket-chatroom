@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>document</title>
+    <script src="https://cdn.jsdelivr.net/npm/js-file-reader/dist/js-file-reader.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.3.1.js"></script>
+</head>
+<body>
+<input type="text" id="name">
+<button id="setname" type="button">设置</button>
+<input type="text" id="text">
+<button id="btn" type="button">发送</button>
+<input type="file" id="file">
+<button id="fileBtn" type="button">文件发送</button>
+<div id="container">
+</div>
+<script>
+    var ws = null
+    document.getElementById('setname').onclick = function () {
+        var name = document.getElementById('name').value
+        ws = new WebSocket('ws://localhost:2333')
+        if (name === '') return console.log('名字为空')
+        ws.onopen = function () {
+            ws.send(JSON.stringify({name: name, type: 'setname'}))
+        }
+        document.getElementById('btn').onclick = sendText
+        document.getElementById('text').onkeyup = function (e) {
+            if (e.keyCode !== 13) return;
+            sendText()
+        }
+        document.getElementById('fileBtn').onclick = sendFile
+        ws.onmessage = function (e) {
+            var con = document.getElementById('container')
+            con.insertBefore(createChatPanel(JSON.parse(e.data)), con.children[0])
+            // document.getElementById('container').appendChild(createChatPanel(JSON.parse(e.data)))
+        }
+        document.getElementById('setname').setAttribute('disabled', true)
+    }
+    function createChatPanel(data) {
+        var name = data.name
+        var text = data.text
+
+        var div = document.createElement('div')
+        var span1 = document.createElement('span')
+        var span2 = document.createElement('span')
+        var image = document.createElement('div')
+        var video = document.createElement('div')
+
+        if (text.indexOf('http://') === 0) {
+            if(
+                text.indexOf('jpeg') !== -1 ||
+                text.indexOf('jpg') !== -1 ||
+                text.indexOf('png') !== -1 ||
+                text.indexOf('gif') !== -1)
+            {
+                image.innerHTML = `<img src="${text}" alt="" width="200px" height="200px"/>`
+                span1.innerHTML = name + ' ' + (new Date()).toString()
+                span2.innerHTML = text
+                span1.style.color = '#00f';
+                div.appendChild(span1)
+                div.appendChild(document.createElement('br'))
+                div.appendChild(image)
+            }
+            else if (
+                text.indexOf('.mp4') !== -1 ||
+                text.indexOf('.ogg') !== -1
+            ){
+                video.innerHTML = `<video src="${text}" width="200px" height="200px" controls></video>`
+                span1.innerHTML = name + ' ' + (new Date()).toString()
+                span2.innerHTML = text
+                span1.style.color = '#00f';
+                div.appendChild(span1)
+                div.appendChild(document.createElement('br'))
+                div.appendChild(video)
+            }
+            else if (text.indexOf('.xlsx') !== -1) {
+                image.innerHTML = `<img src="src/image/exlse.png" alt="" width="100px" height="100px"/> <a href="${text}" download="file">点击下载</a>`
+                span1.innerHTML = name + ' ' + (new Date()).toString()
+                span2.innerHTML = '点击下载'
+                span1.style.color = '#00f';
+                div.appendChild(span1)
+                div.appendChild(document.createElement('br'))
+                div.appendChild(image)
+            }
+            else if (text.indexOf('.pptx') !== -1) {
+                image.innerHTML = `<img src="src/image/ppt.png" alt="" width="200px" height="200px"/> <a href="${text}" download="file">点击下载</a>`
+                span1.innerHTML = name + ' ' + (new Date()).toString()
+                span2.innerHTML = text
+                span1.style.color = '#00f';
+                div.appendChild(span1)
+                div.appendChild(document.createElement('br'))
+                div.appendChild(image)
+            }
+            else if (text.indexOf('.docx') !== -1) {
+                image.innerHTML = `<img src="src/image/word.png" alt="" width="200px" height="200px"/> <a href="${text}" download="file">点击下载</a>`
+                span1.innerHTML = name + ' ' + (new Date()).toString()
+                span2.innerHTML = text
+                span1.style.color = '#00f';
+                div.appendChild(span1)
+                div.appendChild(document.createElement('br'))
+                div.appendChild(image)
+            }
+        } else {
+            span1.innerHTML = name + ' ' + (new Date()).toString()
+            span2.innerHTML = text
+            span1.style.color = '#00f';
+            div.appendChild(span1)
+            div.appendChild(document.createElement('br'))
+            div.appendChild(span2)
+        }
+        // span1.innerHTML = name + ' ' + (new Date()).toString()
+        // span2.innerHTML = text
+
+        // span1.style.color = '#00f';
+        //
+        // div.appendChild(span1)
+        // div.appendChild(document.createElement('br'))
+        // div.appendChild(span2)
+
+        return div
+    }
+    function sendText() {
+        var text = document.getElementById('text')
+        if (text.value === '') return;
+        ws.send(JSON.stringify({
+            text: text.value,
+            type: 'chat'}))
+        text.value = ''
+    }
+    function sendFile() {
+        var file = document.querySelector('input[type="file"]').files[0]
+        var blob
+        readFile(file).then(function (result){
+            blob = result[0].blob
+            console.log(result)
+            uploadFile(file.name, blob)
+        })
+        if (file.value === '') return;
+
+        console.log(file.name)
+    }
+    function uploadFile(name, blob) {
+        data = new FormData();
+        data.append(name, blob);
+        var host = 'http//:localhost:3002'
+        $.ajax({
+            url: "http://localhost:3002/upload/data",
+            type: "POST",
+            data: data,
+            enctype: 'multipart/form-data',
+            processData: false,
+            contentType: false,
+            success: function(message) {
+                ws.send(JSON.stringify({
+                    text: message.result,
+                    type: 'file'
+                }))
+                console.log('Result: Upload successful');
+            },
+            error: function(e) {
+                console.log('Result: Error occurred: ' + e.message);
+            }
+        });
+    }
+</script>
+</body>
+</html>
